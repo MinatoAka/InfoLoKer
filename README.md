@@ -1,48 +1,132 @@
 # InfoLoKer
-Info LoKer Jooble REST API
 
-### Script property
-- APP_TOKEN : minato_AturDompet2026
-- JOOBLE_KEY : 96de1bee-4b9c-4064-a219-xxxxxxxxxx
+InfoLoKer adalah aplikasi Google Apps Script yang menyediakan endpoint REST-like untuk mencari lowongan kerja dari Jooble API. Aplikasi ini dibuat untuk mempermudah integrasi pencarian pekerjaan melalui HTTP request, dengan autentikasi token sederhana, cache, dan proteksi anti-spam.
 
-### Cara Mendapatkan Kunci Jooble REST API
-- Daftar akun di portal API Jooble untuk negara target Anda (misalnya, id.jooble.org/api/about).
-- Setelah terdaftar, salin dan simpan dengan aman kunci API yang telah dibuat.
+## Fitur
 
-### Batasan Penggunaan API:
-Paket REST API gratis mencakup batas seumur hidup sebanyak 500 permintaan per kunci (ini adalah kuota seumur hidup mutlak, bukan batas bulanan).
+- Search lowongan kerja dari Jooble API
+- Autentikasi menggunakan `token`
+- Cache hasil pencarian untuk mengurangi request berulang
+- Proteksi anti-spam per token dan query
+- Dapat dijalankan sebagai Web App di Google Apps Script
 
-### Parameter Permintaan (JSON Body)
-Payload permintaan harus dikirim dalam format application/json dengan parameter berikut:
+## Struktur Project
 
-- keywords(string, wajib): Kata kunci atau jabatan yang ingin dicari.
-- location(string, wajib): Nama lokasi (kota, wilayah, atau negara).
-- radius(string, opsional): Radius pencarian dalam kilometer. Nilai yang diperbolehkan: 0, 4, 8, 16, 26, 40, 80.
-- salary(integer, opsional): Batas gaji minimum.
-- page(integer, opsional): Nomor halaman hasil pencarian (default adalah 1).
-- ResultOnPage(integer, opsional): Jumlah item lowongan yang dikembalikan per halaman.
-- SearchMode(integer, opsional): Mode algoritme pencarian (default adalah 0).
-- companysearch(boolean, opsional):
-  1. true – Cari kata kunci secara khusus dalam nama perusahaan.
-  2. false – Cari kata kunci dalam jabatan dan deskripsi.
+- `Main.gs` — endpoint utama untuk menerima request HTTP
+- `Jooble.gs` — wrapper untuk memanggil API Jooble dengan retry
+- `Cache.gs` — logika cache dan penyimpanan hasil respons
+- `Parser.gs` — normalisasi data lowongan
+- `Utils.gs` — helper umum seperti validasi, sanitasi, dan formatter
 
-### Parameter Respons
-Setelah permintaan berhasil, server mengembalikan objek JSON yang berisi:
+## Persiapan
 
-1. totalCount(integer): Jumlah total lowongan cocok yang ditemukan.
-2. jobs(array): Daftar objek lowongan yang berisi:
-   - id(integer): Pengidentifikasi unik lowongan.
-   - title(string): Jabatan.
-   - location(string): Lokasi lowongan.
-   - snippet(string): Cuplikan deskripsi singkat yang ditampilkan dalam hasil pencarian.
-   - salary(string): Rentang gaji yang diformat sebagai {min} - {max} {currency}.
-   - source(string): Sumber postingan lowongan.
-   - type(string): Jenis pekerjaan (misalnya, Penuh waktu, Paruh waktu).
-   - link(string): URL langsung ke lowongan di Jooble.
-   - company(string): Nama perusahaan.
-   - updated(string): Stempel waktu ISO dari pembaruan lowongan terakhir.
+### 1. Buat Script Properties di Google Apps Script
 
-### Respons HTTP & Kode Kesalahan
-+ 200 OK: Permintaan berhasil dan mengembalikan data.
-+ 403 Access Denied: Kunci API tidak valid atau hilang.
-+ 404 Not Found: Endpoint atau sumber daya yang diminta tidak ada.
+Buka proyek Apps Script Anda, lalu isi Script Properties dengan dua variabel berikut:
+
+- `APP_TOKEN` — token rahasia untuk autentikasi request
+- `JOOBLE_KEY` — API key dari Jooble REST API
+
+Contoh:
+
+```text
+APP_TOKEN=your_secure_token_here
+JOOBLE_KEY=your_jooble_api_key_here
+```
+
+Pastikan nilai token bersifat unik dan tidak dipublikasikan ke repository publik.
+
+### 2. Deploy sebagai Web App
+
+Setelah semua script selesai, deploy aplikasi sebagai Web App di Google Apps Script.
+
+Setelah deployment, Anda akan mendapatkan URL seperti:
+
+```text
+https://script.google.com/macros/s/AKfy.../exec
+```
+
+## Cara Menggunakan API
+
+Endpoint dapat dipanggil melalui HTTP GET.
+
+### Parameter Request
+
+- `token` (wajib): token autentikasi yang sama dengan `APP_TOKEN`
+- `kw` (wajib): kata kunci pekerjaan, contoh: `frontend`, `data analyst`
+- `loc` (opsional): lokasi pencarian, contoh: `Sidoarjo, Jawa Timur`
+
+### Contoh Request
+
+```text
+https://script.google.com/macros/s/AKfy.../exec?token=your_secure_token_here&kw=frontend&loc=Sidoarjo%2C%20Jawa%20Timur
+```
+
+### Contoh Respons
+
+```json
+[
+  {
+    "title": "Frontend Developer",
+    "location": "Sidoarjo, Jawa Timur",
+    "snippet": "Membuat UI dan pengalaman pengguna yang modern.",
+    "salary": "Rp 6.000.000 - Rp 10.000.000",
+    "source": "JobStreet",
+    "type": "Full time",
+    "link": "https://example.com/jobs/123",
+    "company": "PT Contoh Teknologi",
+    "updated": "2026-10-21T08:00:00Z"
+  }
+]
+```
+
+## Keamanan
+
+- Jangan pernah menaruh `APP_TOKEN` atau `JOOBLE_KEY` di repository publik.
+- Gunakan `Script Properties` atau environment variable yang aman.
+- Token yang dikirim di query string harus dipastikan hanya digunakan oleh client yang berwenang.
+
+## Batasan API Jooble
+
+Paket Jooble REST API gratis biasanya memiliki batas penggunaan tertentu, misalnya:
+
+- maksimum 500 request per API key untuk paket gratis
+- kuota bersifat terbatas dan dapat berubah sesuai kebijakan Jooble
+
+## Parameter Jooble yang Digunakan
+
+Request ke Jooble API dikirim dalam format JSON dengan payload berikut:
+
+- `keywords` (wajib): kata kunci pekerjaan
+- `location` (wajib): lokasi pencarian
+- `radius` (opsional): jangkauan radius dalam kilometer
+- `page` (opsional): nomor halaman
+- `ResultOnPage` (opsional): jumlah hasil per halaman
+
+## Kode Status HTTP
+
+- `200 OK` — request berhasil
+- `403 Access Denied` — token tidak valid atau tidak diberikan
+- `429 Too Many Requests` — request diblokir oleh sistem anti-spam
+- `500` atau error internal — gangguan saat memproses request
+
+## Catatan Pengembangan
+
+Project ini dibangun dengan Google Apps Script dan dirancang untuk integrasi ringan dengan frontend, bot, atau layanan lain yang membutuhkan data lowongan kerja dalam format JSON.
+
+## Lisensi
+
+Proyek ini dilisensikan di bawah MIT License. Lihat file `LICENSE` untuk detail lengkap.
+
+## Kontribusi
+
+Pull request dan saran sangat diterima. Jika Anda ingin mengembangkan fitur baru, pastikan:
+
+- menjaga struktur kode tetap rapi
+- menambahkan validasi input
+- menjaga keamanan token dan API key
+- menulis dokumentasi untuk fitur baru
+
+## Penutup
+
+InfoLoKer dibuat untuk memudahkan pencarian pekerjaan secara terstruktur dan cepat, khususnya untuk kebutuhan integrasi dengan aplikasi lain melalui API berbasis Google Apps Script.
