@@ -80,7 +80,8 @@ function safeText(value) {
 }
 
 function buildCacheKey(kw, loc) {
-  return 'jooble_' + normalizeText(kw).toLowerCase() + '_' + normalizeText(loc).toLowerCase();
+  const rawKey = 'jooble_' + normalizeText(kw).toLowerCase() + '_' + normalizeText(loc).toLowerCase();
+  return Utilities.base64EncodeWebSafe(rawKey).substring(0, 200);
 }
 
 function isHtmlResponse(text) {
