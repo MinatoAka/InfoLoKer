@@ -16,6 +16,15 @@ function doGet(e) {
   const CACHE_TTL = 21600;
   const CACHE_KEY = buildCacheKey(kw, loc);
 
+  const antiSpam = checkAntiSpamRequest(providedToken, kw, loc);
+  if (!antiSpam.allowed) {
+    return jsonOutput({
+      error: 'Too Many Requests',
+      message: antiSpam.message,
+      retryAfter: antiSpam.retryAfter
+    });
+  }
+
   const cached = cache.get(CACHE_KEY);
   if (cached) {
     return jsonOutputString(cached);
@@ -82,6 +91,50 @@ function safeText(value) {
 function buildCacheKey(kw, loc) {
   const rawKey = 'jooble_' + normalizeText(kw).toLowerCase() + '_' + normalizeText(loc).toLowerCase();
   return Utilities.base64EncodeWebSafe(rawKey).substring(0, 200);
+}
+
+function checkAntiSpamRequest(token, kw, loc) {
+  const cache = CacheService.getScriptCache();
+  const windowMs = 60000;
+  const maxRequestsPerMinute = 12;
+  const fingerprint = [
+    normalizeText(token || '').toLowerCase(),
+    normalizeText(kw || '').toLowerCase(),
+    normalizeText(loc || '').toLowerCase()
+  ].join('|');
+  const cacheKey = 'anti_spam_' + Utilities.base64EncodeWebSafe(fingerprint).substring(0, 200);
+  const now = Date.now();
+
+  let state = { count: 0, windowStart: now };
+
+  try {
+    const rawState = cache.get(cacheKey);
+    if (rawState) {
+      state = JSON.parse(rawState);
+    }
+  } catch (err) {
+    state = { count: 0, windowStart: now };
+  }
+
+  if (!state.windowStart || (now - Number(state.windowStart)) > windowMs) {
+    state = { count: 0, windowStart: now };
+  }
+
+  if (state.count >= maxRequestsPerMinute) {
+    const elapsed = Math.max(0, now - Number(state.windowStart));
+    const retryAfterSeconds = Math.max(1, Math.ceil((windowMs - elapsed) / 1000));
+
+    return {
+      allowed: false,
+      message: 'Terlalu banyak request. Silakan tunggu beberapa detik sebelum mengirim permintaan lagi.',
+      retryAfter: retryAfterSeconds
+    };
+  }
+
+  state.count += 1;
+  cache.put(cacheKey, JSON.stringify(state), Math.ceil(windowMs / 1000));
+
+  return { allowed: true };
 }
 
 function isHtmlResponse(text) {
