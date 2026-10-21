@@ -23,8 +23,10 @@ function doGet(e) {
 
   const apiKey = (scriptProps.getProperty('JOOBLE_KEY') || '').trim();
   if (!apiKey) {
-    const errJobs = buildErrorJobs('JOOBLE_KEY belum di-set di Script Properties');
-    return jsonOutput(errJobs);
+    const errorJobs = buildErrorJobs('JOOBLE_KEY belum di-set di Script Properties');
+    const jsonStr = JSON.stringify(errorJobs);
+    cache.put(CACHE_KEY, jsonStr, 300);
+    return jsonOutputString(jsonStr);
   }
 
   const payload = {
@@ -36,23 +38,23 @@ function doGet(e) {
   };
 
   try {
-    const res = UrlFetchApp.fetch('https://id.jooble.org/api/' + apiKey, {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    });
+    const fetchResult = fetchJoobleWithRetry(apiKey, payload);
 
-    const text = safeText(res && res.getContentText ? res.getContentText() : '');
+    if (!fetchResult.ok) {
+      const errJobs = buildErrorJobs(fetchResult.error || 'Data lowongan sedang tidak tersedia');
+      const jsonStr = JSON.stringify(errJobs);
+      cache.put(CACHE_KEY, jsonStr, 300);
+      return jsonOutputString(jsonStr);
+    }
 
-    if (isHtmlResponse(text)) {
+    if (isHtmlResponse(fetchResult.text)) {
       const errJobs = buildErrorJobs('Data lowongan sedang tidak tersedia');
       const jsonStr = JSON.stringify(errJobs);
       cache.put(CACHE_KEY, jsonStr, 300);
       return jsonOutputString(jsonStr);
     }
 
-    const data = JSON.parse(text || '{}');
+    const data = JSON.parse(fetchResult.text || '{}');
     const jobs = normalizeJobs(data.jobs || []);
     const jsonStr = JSON.stringify(jobs);
 
@@ -63,7 +65,9 @@ function doGet(e) {
     return jsonOutputString(jsonStr);
   } catch (err) {
     const errJobs = buildErrorJobs(String(err));
-    return jsonOutput(errJobs);
+    const jsonStr = JSON.stringify(errJobs);
+    cache.put(CACHE_KEY, jsonStr, 300);
+    return jsonOutputString(jsonStr);
   }
 }
 
@@ -80,7 +84,47 @@ function buildCacheKey(kw, loc) {
 }
 
 function isHtmlResponse(text) {
-  return text && (text.trim().charAt(0) === '<' || text.indexOf('<!DOCTYPE') > -1);
+  return !!text && (text.trim().charAt(0) === '<' || text.indexOf('<!DOCTYPE') > -1);
+}
+
+function fetchJoobleWithRetry(apiKey, payload) {
+  let lastText = '';
+  let lastError = 'Data lowongan sedang tidak tersedia';
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = UrlFetchApp.fetch('https://id.jooble.org/api/' + apiKey, {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      });
+
+      const text = safeText(res && res.getContentText ? res.getContentText() : '');
+      lastText = text;
+
+      if (text && !isHtmlResponse(text)) {
+        return {
+          ok: true,
+          text: text
+        };
+      }
+
+      lastError = 'Jooble API gagal merespons dengan format yang valid';
+    } catch (err) {
+      lastError = String(err);
+    }
+
+    if (attempt < 3) {
+      Utilities.sleep(250 * attempt);
+    }
+  }
+
+  return {
+    ok: false,
+    text: lastText,
+    error: lastError
+  };
 }
 
 function normalizeJobs(jobs) {
@@ -120,7 +164,11 @@ function normalizeJobs(jobs) {
 }
 
 function sanitizeDescription(snippet) {
-  return safeText(snippet).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().substring(0, 200);
+  return safeText(snippet)
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 200);
 }
 
 function buildErrorJobs(message) {
