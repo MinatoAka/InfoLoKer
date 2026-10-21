@@ -12,30 +12,35 @@ function doGet(e) {
 
   const kw = normalizeText((e && e.parameter && e.parameter.kw) ? e.parameter.kw : '');
   const loc = normalizeText((e && e.parameter && e.parameter.loc) ? e.parameter.loc : 'Sidoarjo, Jawa Timur') || 'Sidoarjo, Jawa Timur';
+
+  const antiSpam = checkAntiSpamRequest(providedToken, kw, loc);
+  if (!antiSpam.allowed) {
+    Logger.log('[ANTI_SPAM] blocked token=' + providedToken + ' kw=' + kw + ' loc=' + loc + ' retryAfter=' + antiSpam.retryAfter + ' count=' + antiSpam.count);
+    return jsonOutput({
+      error: 'Too Many Requests',
+      message: antiSpam.message,
+      retryAfter: antiSpam.retryAfter,
+      count: antiSpam.count
+    });
+  }
+
   const cache = CacheService.getScriptCache();
   const CACHE_TTL = 43200;
   const ERROR_CACHE_TTL = 300;
   const CACHE_KEY = buildCacheKey(kw, loc);
 
-  const antiSpam = checkAntiSpamRequest(providedToken, kw, loc);
-  if (!antiSpam.allowed) {
-    return jsonOutput({
-      error: 'Too Many Requests',
-      message: antiSpam.message,
-      retryAfter: antiSpam.retryAfter
-    });
-  }
-
   const cached = getCachedJson(cache, CACHE_KEY);
   if (cached) {
+    Logger.log('[CACHE] hit key=' + CACHE_KEY + ' count=' + antiSpam.count);
     return jsonOutputString(cached);
   }
 
   const apiKey = (scriptProps.getProperty('JOOBLE_KEY') || '').trim();
   if (!apiKey) {
-    const errorJobs = buildErrorJobs('JOOBLE_KEY belum di-set di Script Properties');
-    const jsonStr = JSON.stringify(errorJobs);
+    const errJobs = buildErrorJobs('JOOBLE_KEY belum di-set di Script Properties');
+    const jsonStr = JSON.stringify(errJobs);
     saveCachedJson(cache, CACHE_KEY, jsonStr, ERROR_CACHE_TTL);
+    Logger.log('[CACHE] miss key=' + CACHE_KEY + ' error=JOOBLE_KEY missing');
     return jsonOutputString(jsonStr);
   }
 
@@ -54,6 +59,7 @@ function doGet(e) {
       const errJobs = buildErrorJobs(fetchResult.error || 'Data lowongan sedang tidak tersedia');
       const jsonStr = JSON.stringify(errJobs);
       saveCachedJson(cache, CACHE_KEY, jsonStr, ERROR_CACHE_TTL);
+      Logger.log('[FETCH] jooble error key=' + CACHE_KEY + ' msg=' + (fetchResult.error || 'Data lowongan sedang tidak tersedia'));
       return jsonOutputString(jsonStr);
     }
 
@@ -61,6 +67,7 @@ function doGet(e) {
       const errJobs = buildErrorJobs('Data lowongan sedang tidak tersedia');
       const jsonStr = JSON.stringify(errJobs);
       saveCachedJson(cache, CACHE_KEY, jsonStr, ERROR_CACHE_TTL);
+      Logger.log('[FETCH] html response key=' + CACHE_KEY);
       return jsonOutputString(jsonStr);
     }
 
@@ -70,13 +77,16 @@ function doGet(e) {
 
     if (shouldCacheResponse(jsonStr)) {
       saveCachedJson(cache, CACHE_KEY, jsonStr, CACHE_TTL);
+      Logger.log('[CACHE] store key=' + CACHE_KEY + ' len=' + jsonStr.length + ' ttl=' + CACHE_TTL);
     }
 
+    Logger.log('[FETCH] success key=' + CACHE_KEY + ' jobs=' + (Array.isArray(data.jobs) ? data.jobs.length : 0) + ' count=' + antiSpam.count);
     return jsonOutputString(jsonStr);
   } catch (err) {
     const errJobs = buildErrorJobs(String(err));
     const jsonStr = JSON.stringify(errJobs);
     saveCachedJson(cache, CACHE_KEY, jsonStr, ERROR_CACHE_TTL);
+    Logger.log('[FETCH] exception key=' + CACHE_KEY + ' err=' + String(err));
     return jsonOutputString(jsonStr);
   }
 }
@@ -111,22 +121,19 @@ function shouldCacheResponse(jsonString) {
 
 function getCachedJson(cache, cacheKey) {
   try {
-    const cached = cache.get(cacheKey);
-    return cached || null;
+    return cache.get(cacheKey) || null;
   } catch (err) {
     return null;
   }
 }
 
 function saveCachedJson(cache, cacheKey, value, ttlSeconds) {
-  if (!cacheKey || !value || !ttlSeconds) {
-    return;
-  }
+  if (!cacheKey || !value || !ttlSeconds) return;
 
   try {
     cache.put(cacheKey, value, ttlSeconds);
   } catch (err) {
-    // abaikan jika cache penuh / tidak bisa simpan
+    Logger.log('[CACHE] save failed key=' + cacheKey + ' err=' + String(err));
   }
 }
 
@@ -139,39 +146,62 @@ function checkAntiSpamRequest(token, kw, loc) {
     normalizeText(kw || '').toLowerCase(),
     normalizeText(loc || '').toLowerCase()
   ].join('|');
+
   const cacheKey = 'anti_spam_' + hashString(fingerprint);
+  const lock = LockService.getScriptLock();
   const now = Date.now();
 
-  let state = { count: 0, windowStart: now };
-
   try {
-    const rawState = cache.get(cacheKey);
-    if (rawState) {
-      state = JSON.parse(rawState);
-    }
+    lock.waitLock(1000);
   } catch (err) {
-    state = { count: 0, windowStart: now };
-  }
-
-  if (!state.windowStart || (now - Number(state.windowStart)) > windowMs) {
-    state = { count: 0, windowStart: now };
-  }
-
-  if (state.count >= maxRequestsPerMinute) {
-    const elapsed = Math.max(0, now - Number(state.windowStart));
-    const retryAfterSeconds = Math.max(1, Math.ceil((windowMs - elapsed) / 1000));
-
+    Logger.log('[ANTI_SPAM] lock timeout key=' + cacheKey + ' err=' + String(err));
     return {
       allowed: false,
-      message: 'Terlalu banyak request. Silakan tunggu beberapa detik sebelum mengirim permintaan lagi.',
-      retryAfter: retryAfterSeconds
+      message: 'Server sedang sibuk. Silakan coba beberapa saat lagi.',
+      retryAfter: 5,
+      count: 0
     };
   }
 
-  state.count += 1;
-  cache.put(cacheKey, JSON.stringify(state), Math.ceil(windowMs / 1000));
+  try {
+    let state = { count: 0, windowStart: now };
 
-  return { allowed: true };
+    try {
+      const rawState = cache.get(cacheKey);
+      if (rawState) {
+        state = JSON.parse(rawState);
+      }
+    } catch (err) {
+      state = { count: 0, windowStart: now };
+    }
+
+    if (!state.windowStart || (now - Number(state.windowStart)) > windowMs) {
+      state = { count: 0, windowStart: now };
+    }
+
+    if (state.count >= maxRequestsPerMinute) {
+      const elapsed = Math.max(0, now - Number(state.windowStart));
+      const retryAfterSeconds = Math.max(1, Math.ceil((windowMs - elapsed) / 1000));
+      Logger.log('[ANTI_SPAM] limit reached key=' + cacheKey + ' count=' + state.count + ' retryAfter=' + retryAfterSeconds);
+      return {
+        allowed: false,
+        message: 'Terlalu banyak request. Silakan tunggu beberapa detik sebelum mengirim permintaan lagi.',
+        retryAfter: retryAfterSeconds,
+        count: state.count
+      };
+    }
+
+    state.count += 1;
+    cache.put(cacheKey, JSON.stringify(state), Math.ceil(windowMs / 1000));
+    Logger.log('[ANTI_SPAM] allowed key=' + cacheKey + ' count=' + state.count + ' windowStart=' + state.windowStart);
+
+    return {
+      allowed: true,
+      count: state.count
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function isHtmlResponse(text) {
