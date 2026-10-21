@@ -13,7 +13,8 @@ function doGet(e) {
   const kw = normalizeText((e && e.parameter && e.parameter.kw) ? e.parameter.kw : '');
   const loc = normalizeText((e && e.parameter && e.parameter.loc) ? e.parameter.loc : 'Sidoarjo, Jawa Timur') || 'Sidoarjo, Jawa Timur';
   const cache = CacheService.getScriptCache();
-  const CACHE_TTL = 21600;
+  const CACHE_TTL = 43200;
+  const ERROR_CACHE_TTL = 300;
   const CACHE_KEY = buildCacheKey(kw, loc);
 
   const antiSpam = checkAntiSpamRequest(providedToken, kw, loc);
@@ -25,7 +26,7 @@ function doGet(e) {
     });
   }
 
-  const cached = cache.get(CACHE_KEY);
+  const cached = getCachedJson(cache, CACHE_KEY);
   if (cached) {
     return jsonOutputString(cached);
   }
@@ -34,7 +35,7 @@ function doGet(e) {
   if (!apiKey) {
     const errorJobs = buildErrorJobs('JOOBLE_KEY belum di-set di Script Properties');
     const jsonStr = JSON.stringify(errorJobs);
-    cache.put(CACHE_KEY, jsonStr, 300);
+    saveCachedJson(cache, CACHE_KEY, jsonStr, ERROR_CACHE_TTL);
     return jsonOutputString(jsonStr);
   }
 
@@ -52,14 +53,14 @@ function doGet(e) {
     if (!fetchResult.ok) {
       const errJobs = buildErrorJobs(fetchResult.error || 'Data lowongan sedang tidak tersedia');
       const jsonStr = JSON.stringify(errJobs);
-      cache.put(CACHE_KEY, jsonStr, 300);
+      saveCachedJson(cache, CACHE_KEY, jsonStr, ERROR_CACHE_TTL);
       return jsonOutputString(jsonStr);
     }
 
     if (isHtmlResponse(fetchResult.text)) {
       const errJobs = buildErrorJobs('Data lowongan sedang tidak tersedia');
       const jsonStr = JSON.stringify(errJobs);
-      cache.put(CACHE_KEY, jsonStr, 300);
+      saveCachedJson(cache, CACHE_KEY, jsonStr, ERROR_CACHE_TTL);
       return jsonOutputString(jsonStr);
     }
 
@@ -67,15 +68,15 @@ function doGet(e) {
     const jobs = normalizeJobs(data.jobs || []);
     const jsonStr = JSON.stringify(jobs);
 
-    if (jsonStr.length < 100000) {
-      cache.put(CACHE_KEY, jsonStr, CACHE_TTL);
+    if (shouldCacheResponse(jsonStr)) {
+      saveCachedJson(cache, CACHE_KEY, jsonStr, CACHE_TTL);
     }
 
     return jsonOutputString(jsonStr);
   } catch (err) {
     const errJobs = buildErrorJobs(String(err));
     const jsonStr = JSON.stringify(errJobs);
-    cache.put(CACHE_KEY, jsonStr, 300);
+    saveCachedJson(cache, CACHE_KEY, jsonStr, ERROR_CACHE_TTL);
     return jsonOutputString(jsonStr);
   }
 }
@@ -89,8 +90,44 @@ function safeText(value) {
 }
 
 function buildCacheKey(kw, loc) {
-  const rawKey = 'jooble_' + normalizeText(kw).toLowerCase() + '_' + normalizeText(loc).toLowerCase();
-  return Utilities.base64EncodeWebSafe(rawKey).substring(0, 200);
+  const rawKey = 'jooble:' + normalizeText(kw).toLowerCase() + ':' + normalizeText(loc).toLowerCase();
+  return hashString(rawKey);
+}
+
+function hashString(value) {
+  try {
+    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, value);
+    return digest.map(function(byte) {
+      return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+    }).join('');
+  } catch (err) {
+    return Utilities.base64EncodeWebSafe(value).replace(/=+$/g, '').substring(0, 200);
+  }
+}
+
+function shouldCacheResponse(jsonString) {
+  return !!jsonString && jsonString.length > 0 && jsonString.length < 100000;
+}
+
+function getCachedJson(cache, cacheKey) {
+  try {
+    const cached = cache.get(cacheKey);
+    return cached || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function saveCachedJson(cache, cacheKey, value, ttlSeconds) {
+  if (!cacheKey || !value || !ttlSeconds) {
+    return;
+  }
+
+  try {
+    cache.put(cacheKey, value, ttlSeconds);
+  } catch (err) {
+    // abaikan jika cache penuh / tidak bisa simpan
+  }
 }
 
 function checkAntiSpamRequest(token, kw, loc) {
@@ -102,7 +139,7 @@ function checkAntiSpamRequest(token, kw, loc) {
     normalizeText(kw || '').toLowerCase(),
     normalizeText(loc || '').toLowerCase()
   ].join('|');
-  const cacheKey = 'anti_spam_' + Utilities.base64EncodeWebSafe(fingerprint).substring(0, 200);
+  const cacheKey = 'anti_spam_' + hashString(fingerprint);
   const now = Date.now();
 
   let state = { count: 0, windowStart: now };
