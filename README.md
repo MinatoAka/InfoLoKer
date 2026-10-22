@@ -3,9 +3,11 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/MinatoAka/InfoLoKer)
 ![GitHub license](https://img.shields.io/github/license/MinatoAka/InfoLoKer)
 
+[![Saweria](https://img.shields.io/badge/Support%20Me-Saweria-%23ff69b4?logo=coffee&logoColor=white)](https://saweria.co/AKaAturDompet)
+
 # InfoLoKer
 
-InfoLoKer adalah aplikasi Google Apps Script yang menyediakan endpoint REST-like untuk mencari lowongan kerja dari Jooble API. Aplikasi ini dibuat untuk mempermudah integrasi pencarian pekerjaan melalui HTTP request, dengan autentikasi token sederhana, cache, dan proteksi anti-spam.
+InfoLoKer adalah aplikasi Google Apps Script yang menyediakan endpoint REST-like untuk mencari lowongan kerja dari Jooble API. Aplikasi ini dibuat untuk mempermudah integrasi pencarian pekerjaan melalui API yang ringan, aman, dan mudah dikustomisasi.
 
 ## Fitur
 
