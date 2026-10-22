@@ -7,7 +7,7 @@
 
 # InfoLoKer
 
-InfoLoKer adalah aplikasi Google Apps Script yang menyediakan endpoint REST-like untuk mencari lowongan kerja dari Jooble API. Aplikasi ini dibuat untuk mempermudah integrasi pencarian pekerjaan melalui API yang ringan, aman, dan mudah dikustomisasi.
+InfoLoKer adalah aplikasi Google Apps Script yang menyediakan endpoint REST-like untuk mencari lowongan kerja dari Jooble API. Aplikasi ini dibuat untuk mempermudah integrasi pencarian pekerjaan melalui API yang ringan dan mudah dikonsumsi.
 
 ## Fitur
 
@@ -123,7 +123,7 @@ Project ini dibangun dengan Google Apps Script dan dirancang untuk integrasi rin
 
 ## Lisensi
 
-Proyek ini dilisensikan di bawah MIT License. Lihat file `LICENSE` untuk detail lengkap.
+Proyek ini dilisensikan di bawah GNU General Public License v3.0 (GPL-3.0). Lihat file `LICENSE` untuk detail lengkap.
 
 ## Kontribusi
 
