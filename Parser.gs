@@ -14,6 +14,12 @@ function normalizeJobs(jobs) {
       category = 'Staff';
     } else if (titleLower.indexOf('manager') > -1) {
       category = 'Manajemen';
+    } else if (titleLower.indexOf('kasir') > -1 || titleLower.indexOf('cashier') > -1) {
+      category = 'Kasir';
+    } else if (titleLower.indexOf('gudang') > -1 || titleLower.indexOf('warehouse') > -1) {
+      category = 'Gudang';
+    } else if (titleLower.indexOf('driver') > -1 || titleLower.indexOf('supir') > -1) {
+      category = 'Driver';
     }
 
     return {
