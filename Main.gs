@@ -7,6 +7,9 @@ function doGet(e) {
     });
   }
 
+  const kw = normalizeText((e && e.parameter && e.parameter.kw) ? e.parameter.kw : '');
+  const loc = normalizeText((e && e.parameter && e.parameter.loc) ? e.parameter.loc : 'Sidoarjo, Jawa Timur') || 'Sidoarjo, Jawa Timur';
+
   const antiSpam = checkAntiSpamRequest(providedToken, kw, loc);
   if (!antiSpam.allowed) {
     Logger.log('[ANTI_SPAM] blocked token=' + providedToken + ' kw=' + kw + ' loc=' + loc + ' retryAfter=' + antiSpam.retryAfter + ' count=' + antiSpam.count);
@@ -33,6 +36,14 @@ function doGet(e) {
     Logger.log('[CACHE] miss key=' + CACHE_KEY + ' error=JOOBLE_KEY missing');
     return jsonOutputString(jsonStr);
   }
+
+  const payload = {
+      keywords: kw,
+      location: loc,
+      radius: '25',
+      page: '1',
+      ResultOnPage: '20'
+  };
 
   try {
     const fetchResult = fetchJoobleWithRetry(apiKey, payload);
