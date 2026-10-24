@@ -35,7 +35,7 @@ function doGet(e) {
   let hasSuccess = false;
   let lastError = 'Data lowongan sedang tidak tersedia';
 
-  const maxPages = parseInt(JOOBLE_MAX_PAGE, 10) || 1;
+  const maxPages = parseInt(JOOBLE_MAX_PAGES, 10) || 1;
   for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
     const payload = {
       keywords: kw,
