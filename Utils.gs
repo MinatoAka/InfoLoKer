@@ -84,10 +84,6 @@ function checkAntiSpamRequest(token, kw, loc) {
   }
 }
 
-function isHtmlResponse(text) {
-  return !!text && (text.trim().charAt(0) === '<' || text.indexOf('<!DOCTYPE') > -1);
-}
-
 function jsonOutput(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
