@@ -1,4 +1,5 @@
 function doGet(e) {
+  const providedToken = safeText(e?.parameter?.token ?? '');
   if (!expectedToken || providedToken !== expectedToken) {
     return jsonOutput({
       error: 'Access denied',
@@ -6,6 +7,8 @@ function doGet(e) {
     });
   }
 
+  const kw = normalizeText(e?.parameter?.kw ?? '');
+  const loc = normalizeText(e?.parameter?.loc ?? '') || 'Sidoarjo, Jawa Timur';
   const antiSpam = checkAntiSpamRequest(providedToken, kw, loc);
   if (!antiSpam.allowed) {
     Logger.log('[ANTI_SPAM] blocked token=' + providedToken + ' kw=' + kw + ' loc=' + loc + ' retryAfter=' + antiSpam.retryAfter + ' count=' + antiSpam.count);
