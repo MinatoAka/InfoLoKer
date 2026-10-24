@@ -24,7 +24,6 @@ function initLimitCounter() {
   }
 }
 
-
 /**
  * Tambah hitungan — panggil HANYA saat request BENAR-BENAR dikirim ke Jooble
  * (jangan panggil kalau ambil dari cache!)
@@ -46,7 +45,6 @@ function incrementApiUsage() {
   
   return remaining;
 }
-
 
 /**
  * Ambil status kuota saat ini — untuk ditampilkan di log/dashboard
