@@ -2,6 +2,9 @@
 const props = PropertiesService.getScriptProperties();
 const expectedToken = (props.getProperty('APP_TOKEN') || '').trim();
 const apiKey = (props.getProperty('JOOBLE_KEY') || '').trim();
+const CACHE_SHEET_ID = (props.getProperty('SPREADSHEET_ID') || '').trim();
+const CACHE_SHEET_NAME = 'LokerCache';
+const CACHE_TTL_HOURS = 96;
 const PROP_LIMIT_USED = 'JOOBLE_REQUESTS_USED';
 const PROP_LIMIT_TOTAL = 'JOOBLE_REQUESTS_TOTAL';
 const DEFAULT_TOTAL_LIMIT = 500;
