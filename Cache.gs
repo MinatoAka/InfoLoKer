@@ -6,7 +6,6 @@ function getCacheSheet() {
   const ss = SpreadsheetApp.openById(CACHE_SHEET_ID);
   let sheet = ss.getSheetByName(CACHE_SHEET_NAME);
   
-  // Kalau sheet belum ada, bikin otomatis beserta header-nya
   if (!sheet) {
     sheet = ss.insertSheet(CACHE_SHEET_NAME);
     sheet.appendRow(['CacheKey', 'Keyword', 'Location', 'DataJSON', 'Timestamp']);
