@@ -40,7 +40,7 @@ function doGet(e) {
   const payload = {
       keywords: kw,
       location: loc,
-      radius: '25',
+      radius: '24',
       page: '1',
       ResultOnPage: '20'
   };
