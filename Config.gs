@@ -8,5 +8,5 @@ const DEFAULT_TOTAL_LIMIT = 500;
 const CACHE_TTL = 43200;
 const ERROR_CACHE_TTL = 300;
 const JOOBLE_RADIUS = '24';
-const JOOBLE_PAGE = '1';
+const JOOBLE_MAX_PAGE = '1';
 const JOOBLE_RESULT_ON_PAGE = '20';
