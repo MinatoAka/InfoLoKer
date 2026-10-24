@@ -15,21 +15,20 @@ function doGet(e) {
     });
   }
 
-  const cache = CacheService.getScriptCache();
-  const CACHE_KEY = buildCacheKey(kw, loc); 
-  const cached = getCachedJson(cache, CACHE_KEY);
+  // 1. CEK CACHE DARI GOOGLE SHEETS
+  const cached = getCachedJson(kw, loc);
   
   if (cached) {
-    Logger.log(`[CACHE] hit key=${CACHE_KEY} count=${antiSpam.count}`);
+    Logger.log(`[CACHE SHEET] hit kw=${kw} loc=${loc} count=${antiSpam.count}`);
     return jsonOutputString(cached);
   }
 
   if (!apiKey) {
-    return errorOutput(cache, CACHE_KEY, 'JOOBLE_KEY belum di-set di Script Properties', `[CACHE] miss key=${CACHE_KEY} error=JOOBLE_KEY missing`);
+    return errorOutput(kw, loc, 'JOOBLE_KEY belum di-set di Script Properties', `[CACHE] miss kw=${kw} error=JOOBLE_KEY missing`);
   }
 
   // ==========================================
-  // LOGIKA SEDOT 2 HALAMAN
+  // LOGIKA SEDOT MULTI HALAMAN
   // ==========================================
   let allJobs = [];
   let hasSuccess = false;
@@ -61,33 +60,31 @@ function doGet(e) {
     } else {
       lastError = fetchResult.error;
       Logger.log(`[FETCH] Halaman ${pageNum} gagal: ${lastError}`);
-      // Kalau halaman 1 gagal, biasanya nggak usah lanjut ke halaman 2
       if (pageNum === 1) break; 
     }
   }
 
-  // Jika halaman 1 & 2 gagal semua
   if (!hasSuccess) {
-    return errorOutput(cache, CACHE_KEY, lastError, `[FETCH] all pages failed key=${CACHE_KEY}`);
+    return errorOutput(kw, loc, lastError, `[FETCH] all pages failed kw=${kw}`);
   }
 
   // ==========================================
-  // PROSES GABUNGAN DATA
+  // PROSES GABUNGAN DATA & SIMPAN KE SHEET
   // ==========================================
   try {
-    // Normalisasi semua data yang udah digabung
     const jobs = normalizeJobs(allJobs);
     const jsonStr = JSON.stringify(jobs);
 
     if (shouldCacheResponse(jsonStr)) {
-      saveCachedJson(cache, CACHE_KEY, jsonStr, CACHE_TTL);
-      Logger.log(`[CACHE] store key=${CACHE_KEY} len=${jsonStr.length} total_jobs=${jobs.length}`);
+      // Simpan ke Google Sheets
+      saveCachedJson(kw, loc, jsonStr); 
+      Logger.log(`[CACHE SHEET] store kw=${kw} loc=${loc} len=${jsonStr.length} total_jobs=${jobs.length}`);
     }
 
-    Logger.log(`[FETCH] success key=${CACHE_KEY} total_jobs=${jobs.length} count=${antiSpam.count}`);
+    Logger.log(`[FETCH] success kw=${kw} total_jobs=${jobs.length} count=${antiSpam.count}`);
     return jsonOutputString(jsonStr);
 
   } catch (err) {
-    return errorOutput(cache, CACHE_KEY, String(err), `[FETCH] exception key=${CACHE_KEY} err=${String(err)}`);
+    return errorOutput(kw, loc, String(err), `[FETCH] exception kw=${kw} err=${String(err)}`);
   }
 }
