@@ -1,3 +1,7 @@
+function isHtmlResponse(text) {
+  return !!text && (text.trim().charAt(0) === '<' || text.indexOf('<!DOCTYPE') > -1);
+}
+
 function fetchJoobleWithRetry(apiKey, payload) {
   let lastText = '';
   let lastError = 'Data lowongan sedang tidak tersedia';
