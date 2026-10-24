@@ -2,14 +2,18 @@
 const props = PropertiesService.getScriptProperties();
 const expectedToken = (props.getProperty('APP_TOKEN') || '').trim();
 const apiKey = (props.getProperty('JOOBLE_KEY') || '').trim();
+
+// Konfigurasi Cache (Google Sheets)
 const CACHE_SHEET_ID = (props.getProperty('SPREADSHEET_ID') || '').trim();
 const CACHE_SHEET_NAME = 'LokerCache';
-const CACHE_TTL_HOURS = 96;
+const CACHE_TTL_HOURS = 96; // 4 Hari
+
+// Konfigurasi Kuota Jooble
 const PROP_LIMIT_USED = 'JOOBLE_REQUESTS_USED';
 const PROP_LIMIT_TOTAL = 'JOOBLE_REQUESTS_TOTAL';
 const DEFAULT_TOTAL_LIMIT = 500;
-const CACHE_TTL = 86400;
-const ERROR_CACHE_TTL = 300;
+
+// Konfigurasi API Jooble
 const JOOBLE_RADIUS = '24';
 const JOOBLE_MAX_PAGES = '1';
 const JOOBLE_RESULT_ON_PAGE = '20';
@@ -29,7 +33,6 @@ function initLimitCounter() {
 
 /**
  * Tambah hitungan — panggil HANYA saat request BENAR-BENAR dikirim ke Jooble
- * (jangan panggil kalau ambil dari cache!)
  */
 function incrementApiUsage() {
   let used = parseInt(props.getProperty(PROP_LIMIT_USED) || '0', 10);
@@ -49,6 +52,9 @@ function incrementApiUsage() {
   return remaining;
 }
 
+/**
+ * Ambil status kuota saat ini
+ */
 function getLimitStatus() {
   const total = parseInt(props.getProperty(PROP_LIMIT_TOTAL) || DEFAULT_TOTAL_LIMIT, 10);
   const used = parseInt(props.getProperty(PROP_LIMIT_USED) || '0', 10);
@@ -62,7 +68,6 @@ function getLimitStatus() {
     percentUsed: percentUsed
   };
 }
-
 
 /**
  * Tampilkan ringkasan di log
