@@ -15,6 +15,7 @@ function fetchJoobleWithRetry(apiKey, payload) {
       lastText = text;
 
       if (text && !isHtmlResponse(text)) {
+        incrementApiUsage();
         return {
           ok: true,
           text: text
