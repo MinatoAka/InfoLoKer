@@ -1,6 +1,5 @@
 function doGet(e) {
   const providedToken = safeText((e && e.parameter && e.parameter.token) ? e.parameter.token : '');
-
   if (!expectedToken || providedToken !== expectedToken) {
     return jsonOutput({
       error: 'Access denied',
