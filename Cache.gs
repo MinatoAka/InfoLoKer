@@ -1,5 +1,5 @@
 /**
- * CACHE.GS - Menggunakan Google Sheets sebagai Database Cache
+ * CACHE.GS - Google Sheets as a Key-Value Cache
  */
 
 function getCacheSheet() {
@@ -19,7 +19,7 @@ function buildCacheKey(kw, loc) {
 }
 
 function shouldCacheResponse(jsonString) {
-  return !!jsonString && jsonString.length > 0 && jsonString.length < 200000; // Limit dinaikin jadi 200KB
+  return !!jsonString && jsonString.length > 0 && jsonString.length < 200000; 
 }
 
 function getCachedJson(kw, loc) {
@@ -32,21 +32,17 @@ function getCachedJson(kw, loc) {
   const now = new Date().getTime();
   const ttlMs = CACHE_TTL_HOURS * 60 * 60 * 1000;
 
-  // Loop dari bawah ke atas (data terbaru)
-  for (let i = data.length - 1; i >= 1; i--) {
-    const rowKey = data[i][0];
-    if (rowKey === cacheKey) {
-      const timestamp = new Date(data[i][4]).getTime();
-      const age = now - timestamp;
-
-      if (age < ttlMs) {
-        Logger.log(`[CACHE SHEET] Hit key=${cacheKey}`);
-        return data[i][3]; // Return DataJSON
-      } else {
-        Logger.log(`[CACHE SHEET] Expired key=${cacheKey}`);
-        sheet.deleteRow(i + 1); // Hapus baris yang basi
-        return null;
-      }
+  // Cek baris ke-2 (karena cuma ada 1 key statis)
+  const row = data[1]; 
+  
+  if (row[0] === cacheKey) {
+    const timestamp = new Date(row[4]).getTime();
+    if ((now - timestamp) < ttlMs) {
+      Logger.log(`[CACHE SHEET] Hit!`);
+      return row[3]; 
+    } else {
+      Logger.log(`[CACHE SHEET] Expired!`);
+      return null; 
     }
   }
   return null;
@@ -55,42 +51,16 @@ function getCachedJson(kw, loc) {
 function saveCachedJson(kw, loc, jsonString) {
   const cacheKey = buildCacheKey(kw, loc);
   const sheet = getCacheSheet();
-  
-  // Hapus data lama jika ada (biar ga dobel)
   const data = sheet.getDataRange().getValues();
-  for (let i = data.length - 1; i >= 1; i--) {
-    if (data[i][0] === cacheKey) {
-      sheet.deleteRow(i + 1);
-    }
-  }
-  
-  // Simpan data baru
-  sheet.appendRow([
-    cacheKey,
-    kw,
-    loc,
-    jsonString,
-    new Date()
-  ]);
-  
-  Logger.log(`[CACHE SHEET] Saved key=${cacheKey}`);
-  
-  // Bersihkan data yang udah basi
-  cleanupExpiredCache();
-}
+  const now = new Date();
 
-function cleanupExpiredCache() {
-  const sheet = getCacheSheet();
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return;
-
-  const now = new Date().getTime();
-  const ttlMs = CACHE_TTL_HOURS * 60 * 60 * 1000;
-
-  for (let i = data.length - 1; i >= 1; i--) {
-    const timestamp = new Date(data[i][4]).getTime();
-    if ((now - timestamp) > ttlMs) {
-      sheet.deleteRow(i + 1);
-    }
+  // Kalau belum ada data, tambah baris baru
+  if (data.length <= 1) {
+    sheet.appendRow([cacheKey, kw, loc, jsonString, now]);
+    Logger.log(`[CACHE SHEET] Inserted.`);
+  } else {
+    // Kalau udah ada, TIMPA baris ke-2 (Overwrite)
+    sheet.getRange(2, 1, 1, 5).setValues([[cacheKey, kw, loc, jsonString, now]]);
+    Logger.log(`[CACHE SHEET] Overwritten.`);
   }
 }
