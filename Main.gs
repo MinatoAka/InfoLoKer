@@ -18,6 +18,7 @@ function doGet(e) {
     });
   }
 
+  const cache = CacheService.getScriptCache();
   const CACHE_KEY = buildCacheKey(kw, loc);
   const cached = getCachedJson(cache, CACHE_KEY);
   if (cached) {
