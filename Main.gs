@@ -1,6 +1,4 @@
 function doGet(e) {
-  const scriptProps = PropertiesService.getScriptProperties();
-  const expectedToken = (scriptProps.getProperty('APP_TOKEN') || '').trim();
   const providedToken = safeText((e && e.parameter && e.parameter.token) ? e.parameter.token : '');
 
   if (!expectedToken || providedToken !== expectedToken) {
@@ -9,9 +7,6 @@ function doGet(e) {
       message: 'Token tidak valid'
     });
   }
-
-  const kw = normalizeText((e && e.parameter && e.parameter.kw) ? e.parameter.kw : '');
-  const loc = normalizeText((e && e.parameter && e.parameter.loc) ? e.parameter.loc : 'Sidoarjo, Jawa Timur') || 'Sidoarjo, Jawa Timur';
 
   const antiSpam = checkAntiSpamRequest(providedToken, kw, loc);
   if (!antiSpam.allowed) {
@@ -24,18 +19,13 @@ function doGet(e) {
     });
   }
 
-  const cache = CacheService.getScriptCache();
-  const CACHE_TTL = 43200;
-  const ERROR_CACHE_TTL = 300;
   const CACHE_KEY = buildCacheKey(kw, loc);
-
   const cached = getCachedJson(cache, CACHE_KEY);
   if (cached) {
     Logger.log('[CACHE] hit key=' + CACHE_KEY + ' count=' + antiSpam.count);
     return jsonOutputString(cached);
   }
 
-  const apiKey = (scriptProps.getProperty('JOOBLE_KEY') || '').trim();
   if (!apiKey) {
     const errJobs = buildErrorJobs('JOOBLE_KEY belum di-set di Script Properties');
     const jsonStr = JSON.stringify(errJobs);
@@ -43,14 +33,6 @@ function doGet(e) {
     Logger.log('[CACHE] miss key=' + CACHE_KEY + ' error=JOOBLE_KEY missing');
     return jsonOutputString(jsonStr);
   }
-
-  const payload = {
-    keywords: kw,
-    location: loc,
-    radius: '25',
-    page: '1',
-    ResultOnPage: '20'
-  };
 
   try {
     const fetchResult = fetchJoobleWithRetry(apiKey, payload);
