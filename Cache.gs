@@ -2,13 +2,12 @@
 const PROP_LIMIT_USED = 'JOOBLE_REQUESTS_USED';
 const PROP_LIMIT_TOTAL = 'JOOBLE_REQUESTS_TOTAL';
 const DEFAULT_TOTAL_LIMIT = 500;
+const props = PropertiesService.getScriptProperties();
 
 /**
  * Inisialisasi counter — panggil sekali saat project baru dipasang
  */
 function initLimitCounter() {
-  const props = PropertiesService.getScriptProperties();
-  
   if (!props.getProperty(PROP_LIMIT_TOTAL)) {
     props.setProperty(PROP_LIMIT_TOTAL, DEFAULT_TOTAL_LIMIT.toString());
   }
@@ -24,8 +23,6 @@ function initLimitCounter() {
  * (jangan panggil kalau ambil dari cache!)
  */
 function incrementApiUsage() {
-  const props = PropertiesService.getScriptProperties();
-  
   let used = parseInt(props.getProperty(PROP_LIMIT_USED) || '0', 10);
   const total = parseInt(props.getProperty(PROP_LIMIT_TOTAL) || DEFAULT_TOTAL_LIMIT, 10);
   
@@ -48,8 +45,6 @@ function incrementApiUsage() {
  * Ambil status kuota saat ini — untuk ditampilkan di log/dashboard
  */
 function getLimitStatus() {
-  const props = PropertiesService.getScriptProperties();
-  
   const total = parseInt(props.getProperty(PROP_LIMIT_TOTAL) || DEFAULT_TOTAL_LIMIT, 10);
   const used = parseInt(props.getProperty(PROP_LIMIT_USED) || '0', 10);
   const remaining = total - used;
@@ -74,7 +69,6 @@ function logLimitStatus() {
   console.info(`✅ Sisa: ${status.remaining} (${status.percentUsed}% terpakai)`);
   console.info('─────────────────────────────');
 }
-
 
 function buildCacheKey(kw, loc) {
   const rawKey = 'jooble:' + normalizeText(kw).toLowerCase() + ':' + normalizeText(loc).toLowerCase();
