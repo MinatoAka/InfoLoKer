@@ -15,16 +15,14 @@ function fetchJoobleWithRetry(apiKey, payload) {
       const text = safeText(res && res.getContentText ? res.getContentText() : '');
       lastText = text;
 
-      // SUKSES: HTTP 200, ada teks, dan bukan HTML (Cloudflare error page)
       if (responseCode === 200 && text && !isHtmlResponse(text)) {
-        incrementApiUsage(); // Catat pemakaian kuota
+        incrementApiUsage();
         return {
           ok: true,
           text: text
         };
       }
 
-      // Kalau status 4xx/5xx, catat error-nya buat log
       if (responseCode !== 200) {
         lastError = 'Jooble API Error (HTTP ' + responseCode + '): ' + text;
       } else {
@@ -36,7 +34,6 @@ function fetchJoobleWithRetry(apiKey, payload) {
     }
 
     if (attempt < 3) {
-      // Jeda lebih lega: 1 detik, lalu 2 detik
       Utilities.sleep(1000 * Math.pow(2, attempt - 1));
     }
   }
