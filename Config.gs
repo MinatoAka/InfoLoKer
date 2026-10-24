@@ -46,9 +46,6 @@ function incrementApiUsage() {
   return remaining;
 }
 
-/**
- * Ambil status kuota saat ini — untuk ditampilkan di log/dashboard
- */
 function getLimitStatus() {
   const total = parseInt(props.getProperty(PROP_LIMIT_TOTAL) || DEFAULT_TOTAL_LIMIT, 10);
   const used = parseInt(props.getProperty(PROP_LIMIT_USED) || '0', 10);
