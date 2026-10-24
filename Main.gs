@@ -1,14 +1,10 @@
 function doGet(e) {
-  const providedToken = safeText((e && e.parameter && e.parameter.token) ? e.parameter.token : '');
   if (!expectedToken || providedToken !== expectedToken) {
     return jsonOutput({
       error: 'Access denied',
       message: 'Token tidak valid'
     });
   }
-
-  const kw = normalizeText((e && e.parameter && e.parameter.kw) ? e.parameter.kw : '');
-  const loc = normalizeText((e && e.parameter && e.parameter.loc) ? e.parameter.loc : 'Sidoarjo, Jawa Timur') || 'Sidoarjo, Jawa Timur';
 
   const antiSpam = checkAntiSpamRequest(providedToken, kw, loc);
   if (!antiSpam.allowed) {
@@ -36,14 +32,6 @@ function doGet(e) {
     Logger.log('[CACHE] miss key=' + CACHE_KEY + ' error=JOOBLE_KEY missing');
     return jsonOutputString(jsonStr);
   }
-
-  const payload = {
-      keywords: kw,
-      location: loc,
-      radius: '24',
-      page: '1',
-      ResultOnPage: '20'
-  };
 
   try {
     const fetchResult = fetchJoobleWithRetry(apiKey, payload);
