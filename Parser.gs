@@ -59,3 +59,10 @@ function buildErrorJobs(message) {
     isVerified: false
   }];
 }
+
+function errorOutput(cache, cacheKey, message, logMessage) {
+  const jsonStr = JSON.stringify(buildErrorJobs(message));
+  saveCachedJson(cache, cacheKey, jsonStr, ERROR_CACHE_TTL);
+  Logger.log(logMessage);
+  return jsonOutputString(jsonStr);
+}
